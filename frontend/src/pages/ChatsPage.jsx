@@ -20,7 +20,7 @@ export default function ChatsPage() {
     <div className="h-screen flex flex-col bg-gray-50">
       <Header />
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 border-r bg-white flex flex-col">
+        <aside className="w-80 border-r bg-white flex flex-col relative">
           <div className="p-2 flex justify-between items-center border-b">
             <span className="font-bold text-lg">Chats</span>
             <button

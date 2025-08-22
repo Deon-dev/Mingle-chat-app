@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../stores/useStore';
 import api from '../utils/api';
-// import useSocket from '../hooks/useSocket';
 import MessageItem from './MessageItem';
 import toast from 'react-hot-toast';
 
 export default function ChatWindow() {
-  // const socket = useSocket();
   const { user, activeChatId, messages, setMessages, chats, setChats } = useStore();
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
@@ -27,13 +25,6 @@ export default function ChatWindow() {
     }
   }, [messages, activeChatId]);
 
-  // Load chats
-  useEffect(() => {
-    api.get('/chats')
-      .then(({ data }) => setChats(Array.isArray(data) ? data : []))
-      .catch(() => setChats([]));
-  }, [setChats]);
-
   const safeChats = Array.isArray(chats) ? chats : [];
   const chat = safeChats.find(c => c._id === activeChatId);
 
@@ -44,8 +35,11 @@ export default function ChatWindow() {
       return;
     }
     if (!text.trim() && !file) return;
+
+    let attachments = [];
+    let tempMsg = null;
+
     try {
-      let attachments = [];
       if (file) {
         const formData = new FormData();
         formData.append('file', file);
@@ -54,20 +48,59 @@ export default function ChatWindow() {
         });
         attachments = [data.url];
       }
-      // Defensive: Only send content if it's a text message
-      await api.post('/messages', {
+
+      // Optimistically add message
+      tempMsg = {
+        _id: 'temp-' + Date.now(),
+        content: file ? '' : text,
+        sender: user,
+        createdAt: new Date().toISOString(),
+        type: file ? 'image' : 'text',
+        attachments,
+        readBy: [user],
+      };
+      setMessages(msgs => ({
+        ...msgs,
+        [activeChatId]: [...(msgs[activeChatId] || []), tempMsg],
+      }));
+
+      setText('');
+      setFile(null);
+
+      // Send to server
+      const { data: savedMessage } = await api.post('/messages', {
         chatId: activeChatId,
         content: file ? '' : text,
         type: file ? 'image' : 'text',
-        attachments
+        attachments,
       });
-      setText('');
-      setFile(null);
-      const { data } = await api.get(`/messages/${activeChatId}`);
-      setMessages(msgs => ({ ...msgs, [activeChatId]: data }));
+
+      // Replace temp message with real one
+      setMessages(msgs => ({
+        ...msgs,
+        [activeChatId]: (msgs[activeChatId] || []).map(m =>
+          m._id === tempMsg._id ? savedMessage : m
+        ),
+      }));
+
+      // Update chat list with latest message
+      setChats(chats =>
+        chats.map(c =>
+          c._id === activeChatId
+            ? { ...c, lastMessage: savedMessage }
+            : c
+        )
+      );
     } catch (err) {
       toast.error('Failed to send message');
-      console.error(err); // Add this to see the error details
+      // Remove temp message if failed
+      if (tempMsg) {
+        setMessages(msgs => ({
+          ...msgs,
+          [activeChatId]: (msgs[activeChatId] || []).filter(m => m._id !== tempMsg._id),
+        }));
+      }
+      console.error(err);
     }
   }
 

@@ -40,7 +40,7 @@ export default function ChatList() {
   const safeChats = Array.isArray(chats) ? chats : [];
 
   return (
-    <div className="overflow-y-auto h-[calc(100vh-56px)]">
+    <div className="relative h-full overflow-y-auto">
       {safeChats.map(c => {
         const other = !c.isGroup
           ? c.members.find(m => m._id !== user?._id)
@@ -77,9 +77,10 @@ export default function ChatList() {
           </button>
         );
       })}
+      {/* Place the button absolutely within the sidebar */}
       <button
         onClick={() => setModalOpen(true)}
-        className="btn btn-primary rounded-full w-12 h-12 fixed bottom-4 right-4 flex items-center justify-center shadow-lg"
+        className="btn btn-primary rounded-full w-12 h-12 absolute bottom-4 right-4 flex items-center justify-center shadow-lg"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
